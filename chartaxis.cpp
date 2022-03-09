@@ -16,6 +16,9 @@ ChartGrid::ChartGrid()
 
 void ChartGrid::paint(QPainter* painter, const QVector<QPair<QPointF, QPointF> >& points)
 {
+    const QTransform oldTr = painter->transform();
+    const QRect oldWindow = painter->window();
+
     initPainter(painter);
 
     const QPair<QPointF, QPointF>& zeroLine = points.at(0);
@@ -42,6 +45,9 @@ void ChartGrid::paint(QPainter* painter, const QVector<QPair<QPointF, QPointF> >
             painter->drawLine(0, max_y, x, 0);
         }
     }
+
+    painter->setTransform(oldTr);
+    painter->setWindow(oldWindow);
 }
 
 void ChartGrid::initPainter(QPainter* painter)
@@ -57,7 +63,7 @@ ChartAxis::ChartAxis(PlainChart* parent, bool is_horiz, bool is_invert)
       grd(new ChartGrid()),
       chart(parent),
       labelPen(QPen(Qt::gray)),
-      centerPx(0), lbPos(0), cellSize(0),
+      lbPos(0), cellSize(0),
       isHoriz(is_horiz), isInvert(is_invert), divide(false),
       offst(0), shft(0)
 {
@@ -90,7 +96,7 @@ void ChartAxis::setAlignment(Qt::AlignmentFlag newPos)
     }
     else
     {
-        if (newPos <= Qt::AlignHCenter)
+        if (newPos >= Qt::AlignLeft && newPos <= Qt::AlignHCenter)
             labelPos = newPos;
     }
 }
@@ -116,6 +122,8 @@ void ChartAxis::setSize(int newSize)
 
 void ChartAxis::updateLabelPos()
 {
+    VSKChartAxis* another = (this == chart->xAxs) ? chart->yAxs : chart->xAxs;
+
     if (labelPos == Qt::AlignTop)
         lbPos = 0 + chart->textHeight;
     if (labelPos == Qt::AlignBottom)
@@ -124,10 +132,12 @@ void ChartAxis::updateLabelPos()
         lbPos = 0;
     if (labelPos == Qt::AlignRight)
         lbPos = chart->width() - chart->textWidth;
-    if (labelPos == Qt::AlignVCenter)
-        lbPos = chart->height() / 2;
-    if (labelPos == Qt::AlignHCenter)
-        lbPos = chart->width() / 2; 
+    if (labelPos == Qt::AlignVCenter || labelPos == Qt::AlignHCenter)
+    {
+        const int pos = another->pixelFromCoord(0);
+        lbPos = (pos < chart->textHeight) ? chart->textHeight : pos;
+        lbPos = (pos > another->pixelSpan()) ? another->pixelSpan() : pos;
+    } 
 }
 
 void ChartAxis::initPainter(QPainter* painter)
@@ -159,9 +169,8 @@ void ChartAxis::paint(QPainter* painter)
 
     for (int i = 0; i < points.size(); ++i)
     {
-        const qreal coord = (points[i] == center()) ? 0 : coordFromPixel(points[i]);
-        const QString text = QString::number(drawDivided ? qRound(coord / 1000) : coord, 'f',
-                                             (coord == int(coord)) ? 0 : 2);
+        const int coord = (i == 0) ? 0 : coordFromPixel(points[i]);
+        const QString text = QString::number(drawDivided ? qRound(coord / 1000) : coord);
 
         QPointF point;
 

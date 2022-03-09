@@ -27,7 +27,6 @@ PlainChart::PlainChart(QWidget *parent)
     dataLayer->addLayer(data);
     textLayer->addLayer(text);
 
-    setDefaultPostition(BottomLeft);
     updateSizeAspects();
 }
 
@@ -41,11 +40,6 @@ void PlainChart::replot()
     setMouseTracking(true);
     updateRanges();
     update();
-}
-
-void PlainChart::setDefaultPostition(Corner pos)
-{
-    corner = pos;
 }
 
 ChartDataItem* PlainChart::createDataItem(DataType type)
@@ -211,16 +205,8 @@ void PlainChart::updateRanges()
         y_finish = yAxs->max();
     }
 
-    if (corner == Center)
-    {
-        x_offset = qAbs(x_finish - x_start) / 2;
-        y_offset = qAbs(y_finish - y_start) / 2;
-    }
-    else if (corner == BottomLeft)
-    {
-        x_offset = qAbs(x_finish - x_start);
-        y_offset = qAbs(y_finish - y_start);
-    }
+    x_offset = qAbs(x_finish - x_start);
+    y_offset = qAbs(y_finish - y_start);
 
     const qreal x_local = xAxs->isInverted() ? x_finish : x_start;
     const qreal y_local = yAxs->isInverted() ? y_finish : y_start;
@@ -240,11 +226,6 @@ void PlainChart::updateRanges()
 
 void PlainChart::updateSizeAspects()
 {
-    if (corner == BottomLeft)
-        xAxs->setAlignment(Qt::AlignBottom);
-    else if (corner == TopLeft)
-        xAxs->setAlignment(Qt::AlignTop);
-
     xAxs->setSize(width());
     yAxs->setSize(height());
 }

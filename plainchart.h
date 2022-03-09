@@ -15,13 +15,10 @@ class PlainChart : public QLabel
     Q_OBJECT
 
 public:
-    enum Corner { Center, BottomLeft, TopLeft };
-
     explicit PlainChart(QWidget *parent = 0);
     ~PlainChart();
 
     void replot();
-    void setDefaultPostition(Corner pos);
 
     ChartDataItem* createDataItem(DataType type);
     void addTextItem(const QPointF& point, const QString& str);
@@ -52,7 +49,6 @@ private:
     ChartLayer* dataLayer;
     ChartLayer* textLayer;
 
-    Corner corner;
     int textWidth;
     int textHeight;
     bool recalcBounds, recalcStep;

@@ -212,12 +212,12 @@ ChartTrajectoryData::ChartTrajectoryData()
 
 void ChartTrajectoryData::paint(QPainter* painter)
 {
-    const qreal w_rect = ((double)painter->window().width() / painter->viewport().width() == 0)
+    const qreal w_rect = (painter->window().width() / painter->viewport().width() == 0)
                              ? 1 : (double)painter->window().width() / painter->viewport().width() * 4;
-    const qreal h_rect = ((double)painter->window().height() / painter->viewport().height() == 0)
+    const qreal h_rect = (painter->window().height() / painter->viewport().height() == 0)
                              ? 1 : (double)painter->window().height() / painter->viewport().height() * 4;
 
-    mainPen.setWidth(w_rect / 4);
+    mainPen.setWidth(h_rect / 4);
 
     painter->setBrush(mainBrush);
     painter->setPen(mainPen);
@@ -269,7 +269,7 @@ ChartSplineData::ChartSplineData()
 void ChartSplineData::paint(QPainter* painter)
 {
     const int h_rect = (painter->window().height() / painter->viewport().height() == 0)
-                           ? 1 : painter->window().height() / painter->viewport().height() * 4;
+                           ? 1 : (double)painter->window().height() / painter->viewport().height() * 4;
 
     mainPen.setWidth(h_rect / 2);
 
@@ -330,13 +330,13 @@ ChartPointData::ChartPointData()
 
 void ChartPointData::paint(QPainter* painter)
 {
-    const qreal w_rect = ((double)painter->window().width() / painter->viewport().width() == 0)
+    const qreal w_rect = (painter->window().width() / painter->viewport().width() == 0)
                            ? 1 : (double)painter->window().width() / painter->viewport().width() * 4;
-    const qreal h_rect = ((double)painter->window().height() / painter->viewport().height() == 0)
+    const qreal h_rect = (painter->window().height() / painter->viewport().height() == 0)
                            ? 1 : (double)painter->window().height() / painter->viewport().height() * 4;
 
-    zeroPointPen.setWidth(w_rect / 4);
-    mainPen.setWidth(w_rect / 4);
+    zeroPointPen.setWidth(h_rect / 4);
+    mainPen.setWidth(h_rect / 4);
 
     //рисуем точки стояния БМ
     painter->setBrush(zeroPointBr);

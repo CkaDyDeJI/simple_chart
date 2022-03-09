@@ -70,7 +70,6 @@ public:
 
     void setRange(double newS, double newF);
     void setAlignment(Qt::AlignmentFlag newPos);
-    void setCenter(int newCenter) { centerPx = newCenter; }
     void setSize(int newSize);
     void setOffset(qreal newOffset) { offst = newOffset; }
     void setShift(qreal newShift) { shft = newShift; }
@@ -80,7 +79,6 @@ public:
     void setDivideLabel(bool enabled) { divide = enabled; }
 
     ChartGrid* grid() const { return grd; }
-    int center() const { return centerPx; }
     int cell() const { return cellSize; }
     qreal offset() const { return offst; }
     qreal shift() const { return shft; }
@@ -91,7 +89,6 @@ public:
 
 private:
     void initPainter(QPainter* painter);
-    int pixelFromAbsPixel(int pixel) const;
     bool isDivided() const;
     void updateLabelPos();
 
@@ -101,7 +98,7 @@ private:
     PlainChart* chart;
     QPen labelPen;
     Qt::AlignmentFlag labelPos;
-    int centerPx, lbPos, cellSize, divideThreshold;
+    int lbPos, cellSize, divideThreshold;
     bool isHoriz, isInvert, divide;
     qreal offst, shft;
 };
