@@ -1,5 +1,5 @@
 #include "mainwindow.h"
-#include "plainchart.h"
+#include "chart/plainchart.h"
 
 #include <QLayout>
 
@@ -15,7 +15,6 @@ MainWindow::MainWindow(QWidget *parent)
     setGeometry(0, 0, 700, 300);
 
     chart->setGeometry(geometry());
-    chart->setDefaultPostition(PlainChart::BottomLeft);
 
     chart->xAxis()->grid()->setZeroLinePen(QPen(Qt::red, 1, Qt::SolidLine));
     chart->yAxis()->grid()->setZeroLinePen(QPen(Qt::red, 1, Qt::SolidLine));

@@ -4,6 +4,7 @@
 #include "chartlayeritem.h"
 #include "plainchart.h"
 
+#include <QtMath>
 #include <QPainter>
 
 ChartGrid::ChartGrid()
@@ -122,7 +123,7 @@ void ChartAxis::setSize(int newSize)
 
 void ChartAxis::updateLabelPos()
 {
-    VSKChartAxis* another = (this == chart->xAxs) ? chart->yAxs : chart->xAxs;
+    ChartAxis* another = (this == chart->xAxs) ? chart->yAxs : chart->xAxs;
 
     if (labelPos == Qt::AlignTop)
         lbPos = 0 + chart->textHeight;
@@ -170,7 +171,7 @@ void ChartAxis::paint(QPainter* painter)
     for (int i = 0; i < points.size(); ++i)
     {
         const int coord = (i == 0) ? 0 : coordFromPixel(points[i]);
-        const QString text = QString::number(drawDivided ? qRound(coord / 1000) : coord);
+        const QString text = QString::number(drawDivided ? qRound(coord / 1000.0) : coord);
 
         QPointF point;
 
