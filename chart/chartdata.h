@@ -3,15 +3,13 @@
 
 #include "chartlayeritem.h"
 
-#include <QPen>
-
 class PlainChart;
 class ChartAxis;
 class ChartText;
-class ChartSplineData;
+class ChartRouteData;
 
 
-enum DataType { polygs, trajects, spline, points };
+enum DataType { polygs, trajects, routes, points };
 
 
 class ChartDataItem
@@ -25,6 +23,7 @@ public:
     virtual void setPen(const QPen& pen) { mainPen = pen; }
     virtual void setBrush(const QBrush& br) { mainBrush = br; }
     virtual void setColor(Qt::GlobalColor color) { mainPen.setColor(color); mainBrush.setColor(color); }
+    virtual void setParams(qreal new_w, qreal new_h) { wdt = new_w; hgt = new_h; }
     virtual void clearData() = 0;
     virtual bool isEmpty() const = 0;
     virtual const QVector<qreal> range() const { return bounds; }
@@ -33,6 +32,8 @@ public:
     QBrush brush() const { return mainBrush; }
 
 protected:
+    qreal hgt;
+    qreal wdt;
     QVector<qreal> bounds;
     QPen mainPen;
     QBrush mainBrush;
@@ -51,7 +52,7 @@ public:
     void addDataItem(ChartDataItem* item);
     ChartDataItem* itemAt(int index);
     void setHeightItem(ChartDataItem* item);
-    ChartSplineData* heightItem() const { return hghtItem; }
+    ChartRouteData* heightItem() const { return hghtItem; }
 
     void clearData();
     bool isEmpty() const;
@@ -61,7 +62,7 @@ private:
     void initPainter(QPainter* painter);
 
     PlainChart* chart;
-    ChartSplineData* hghtItem;
+    ChartRouteData* hghtItem;
     QVector<ChartDataItem*> mData;
 
     friend class PlainChart;
@@ -109,23 +110,23 @@ private:
 };
 
 
-class ChartSplineData : public ChartDataItem
+class ChartRouteData : public ChartDataItem
 {
 public:
-    ChartSplineData();
-    virtual ~ChartSplineData() { clearData(); }
+    ChartRouteData();
+    virtual ~ChartRouteData() { clearData(); }
 
     virtual void paint(QPainter* painter);
     virtual void setData(const QVector<QPointF>& prof);
     virtual void clearData();
-    virtual bool isEmpty() const { return spline.isEmpty(); }
+    virtual bool isEmpty() const { return profile.isEmpty(); }
 
     qreal heightValue(qreal x_value) const;
 
 private:
-    void setSpline(const QVector<QPointF>& prof);
+    void setRoute(const QVector<QPointF>& prof);
 
-    QVector<QPointF> spline;
+    QVector<QPointF> profile;
 };
 
 

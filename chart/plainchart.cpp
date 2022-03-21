@@ -9,16 +9,64 @@
 #include <QTransform>
 #include <QMouseEvent>
 
+
+static inline qreal correct_ceil(qreal value, bool max)
+{
+    if (max)
+        return qCeil(value);
+    else
+        return qFloor(value);
+}
+
+static inline qreal round_step(qreal step, qreal min_size)
+{
+    if (step > 1 && step < 10)
+        return (int)step;
+    if (step <= 1)
+        return step;
+
+    int i_step = step;
+
+    const QString s_step = QString::number(i_step);
+    const int f_pow = qPow(10, s_step.size() - 1);
+    const int s_pow = qPow(10, s_step.size() - 2);
+
+    while (true)
+    {
+        int s_num = i_step / s_pow % 10;
+
+        if (s_num < 3)
+            i_step -= s_num * s_pow;
+        else if (s_num >= 3 && s_num < 8)
+            i_step += (5 - s_num) * s_pow;
+        else
+        {
+            i_step += f_pow;
+            i_step -= s_num * s_pow;
+        }
+
+        i_step = i_step / s_pow * s_pow;
+
+        if (i_step > min_size)
+            return (qreal)i_step;
+        else if (s_num == 5 || s_num == 0)
+            i_step += 3 * s_pow;
+    }
+
+    return 0.0;
+}
+
+
 PlainChart::PlainChart(QWidget *parent)
     : QLabel(parent),
-      xAxs(new ChartAxis(this, true, false)),
-      yAxs(new ChartAxis(this, false, true)),
-      data(new ChartData(this)),
-      text(new ChartText(this)),
-      axisLayer(new ChartLayer()),
-      dataLayer(new ChartLayer()),
-      textLayer(new ChartLayer()),
-      recalcBounds(true), recalcStep(true)
+    xAxs(new ChartAxis(this, true, false)),
+    yAxs(new ChartAxis(this, false, true)),
+    data(new ChartData(this)),
+    text(new ChartText(this)),
+    axisLayer(new ChartLayer()),
+    dataLayer(new ChartLayer()),
+    textLayer(new ChartLayer()),
+    recalcBounds(true), recalcStep(true)
 {
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Ignored);
 
@@ -33,6 +81,13 @@ PlainChart::PlainChart(QWidget *parent)
 PlainChart::~PlainChart()
 {
     clear();
+    delete xAxs;
+    delete yAxs;
+    delete data;
+    delete text;
+    delete axisLayer;
+    delete dataLayer;
+    delete textLayer;
 }
 
 void PlainChart::replot()
@@ -54,13 +109,13 @@ void PlainChart::addTextItem(const QPointF& point, const QString& str)
 
 void PlainChart::setExtremes(qreal x_min, qreal x_max, qreal y_min, qreal y_max)
 {
-    xAxs->setRange(x_min, x_max);
-    yAxs->setRange(y_min, y_max);
+    xAxs->setRange(correct_ceil(x_min, false), correct_ceil(x_max, true));
+    yAxs->setRange(correct_ceil(y_min, false), correct_ceil(y_max, true));
 
     recalcBounds = false;
 }
 
-void PlainChart::setGridStep(int step_x, int step_y)
+void PlainChart::setGridStep(qreal step_x, qreal step_y)
 {
     xAxs->setCell(step_x);
     yAxs->setCell(step_y);
@@ -82,27 +137,27 @@ void PlainChart::resetBounds()
 }
 
 void PlainChart::calcChartParams(QPainter* painter)
-{    
+{
     const QFontMetrics& metric = painter->fontMetrics();
-    const QString text = QString::number(xAxs->finish());
-    const int text_width = metric.horizontalAdvance(text) + 10;
+    const QString text = QString::number(-(int)qMax(qAbs(xAxs->min()), qAbs(xAxs->max())));
+    const int text_width = metric.width(text);
+    const int text_height = metric.height();
+    const qreal coord_text_width = qAbs(xAxs->coordFromPixel(text_width + 10) - xAxs->coordFromPixel(0));
+    const qreal coord_text_height = qAbs(yAxs->coordFromPixel(text_height + 2) - yAxs->coordFromPixel(0));
 
-    textWidth = text_width - 10;
-    textHeight = metric.height();
+    textWidth = text_width;
+    textHeight = text_height;
 
     if (recalcStep)
     {
-        const int min_ax_size = std::min(width(), height()) / 5.0;
+        const int x_number_of_ticks = xAxs->numberOfTicks();
+        const int y_number_of_ticks = yAxs->numberOfTicks();
 
-        int x_cell = 0, y_cell = 0;
-        x_cell = y_cell = (min_ax_size > text_width) ? min_ax_size : text_width;
+        const qreal x_step = xAxs->getSpan() / x_number_of_ticks;
+        const qreal y_step = yAxs->getSpan() / y_number_of_ticks;
 
-        //если шаг сетки слишком большой для оси y, то устанавливаем его по умолчанию (высота / 5)
-        if (height() / y_cell <= 3)
-            y_cell = height() / 5;
-
-        xAxs->setCell(x_cell);
-        yAxs->setCell(y_cell);
+        xAxs->setCell(round_step(x_step, coord_text_width));
+        yAxs->setCell(round_step(y_step, coord_text_height));
     }
 }
 
@@ -118,6 +173,8 @@ void PlainChart::clear()
     yAxs->setRange(0, 0);
     recalcBounds = true;
     recalcStep = true;
+
+    //    emit currentCoords(meter(0), meter(0));
 }
 
 void PlainChart::resizeEvent(QResizeEvent *)
@@ -155,13 +212,18 @@ void PlainChart::mouseMoveEvent(QMouseEvent *event)
 
 void PlainChart::calcCoordsPoints(const QPoint &pointer)
 {
-    qreal x = xAxs->coordFromPixel(pointer.x());
-    qreal y = yAxs->coordFromPixel(pointer.y());
+    const qreal x = xAxs->coordFromPixel(pointer.x());
+    const qreal y = yAxs->coordFromPixel(pointer.y());
+
+    qreal resultX = x;
+    qreal resultY = y;
 
     if (data->heightItem() != NULL)
-        y = data->heightItem()->heightValue(x);
+        resultY = data->heightItem()->heightValue(resultX);
+    else
+        resultY = y;
 
-    emit currentCoords(x, y);
+    emit currentCoords(resultX, resultY);
 }
 
 void PlainChart::calcCoordsAngle(const QPoint& pointer)
@@ -169,8 +231,7 @@ void PlainChart::calcCoordsAngle(const QPoint& pointer)
     const qreal x = xAxs->coordFromPixel(pointer.x());
     const qreal y = yAxs->coordFromPixel(pointer.y());
 
-    double angle = qAtan2(y, x);
-//    degree angle = rad2deg(radian(qAtan2(y, x)));
+    qreal angle = qAtan2(y, x);
 
     emit currentAngle(angle);
 }

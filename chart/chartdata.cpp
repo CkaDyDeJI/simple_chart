@@ -45,8 +45,8 @@ static inline void calcBounds(QVector<qreal>& bounds, const QVector<QPointF>& ve
 
 ChartData::ChartData(PlainChart* chart)
     : ChartLayerItem(),
-      chart(chart),
-      hghtItem(NULL)
+    chart(chart),
+    hghtItem(NULL)
 {
 
 }
@@ -59,7 +59,11 @@ void ChartData::paint(QPainter* painter)
     initPainter(painter);
 
     for (int i = 0; i < mData.size(); ++i)
+    {
+        mData.at(i)->setParams(chart->xAxs->getSpan() / chart->xAxs->pixelSpan() * 4.0,
+                               chart->yAxs->getSpan() / chart->yAxs->pixelSpan() * 4.0);
         mData.at(i)->paint(painter);
+    }
 
     painter->setTransform(oldTr);
     painter->setWindow(oldWindow);
@@ -73,8 +77,8 @@ ChartDataItem* ChartData::createItem(DataType type)
         dataItem = new ChartPolygonData();
     else if (type == trajects)
         dataItem = new ChartTrajectoryData();
-    else if (type == spline)
-        dataItem = new ChartSplineData();
+    else if (type == routes)
+        dataItem = new ChartRouteData();
     else
         dataItem = new ChartPointData();
 
@@ -98,7 +102,7 @@ ChartDataItem* ChartData::itemAt(int index)
 
 void ChartData::setHeightItem(ChartDataItem* item)
 {
-    hghtItem = static_cast<ChartSplineData*>(item);
+    hghtItem = static_cast<ChartRouteData*>(item);
 }
 
 void ChartData::clearData()
@@ -122,19 +126,19 @@ bool ChartData::isEmpty() const
 const QVector<qreal> ChartData::range() const
 {
     QVector<qreal> bounds = QVector<qreal>()
-                            << std::numeric_limits<qreal>::max() << std::numeric_limits<qreal>::min()
-                            << std::numeric_limits<qreal>::max() << std::numeric_limits<qreal>::min();
+                            << std::numeric_limits<qreal>::max() << -std::numeric_limits<qreal>::max()
+                            << std::numeric_limits<qreal>::max() << -std::numeric_limits<qreal>::max();
 
     for (int i = 0; i < mData.size(); ++i)
         calcBounds(bounds, mData.at(i)->range());
 
-    if (bounds.at(0) == bounds.at(1))
+    if (qRound(bounds.at(0)) == qRound(bounds.at(1)))
     {
         bounds[0] -= 2.5;
         bounds[1] += 2.5;
     }
 
-    if (bounds.at(2) == bounds.at(3))
+    if (qRound(bounds.at(2)) == qRound(bounds.at(3)))
     {
         bounds[2] -= 2.5;
         bounds[3] += 2.5;
@@ -154,6 +158,7 @@ void ChartData::initPainter(QPainter* painter)
     const int x_scale = (chart->xAxs->isInverted()) ? -1 : 1;
     const int y_scale = (chart->yAxs->isInverted()) ? -1 : 1;
 
+    //make it relative
     const QTransform transform = QTransform().translate(x_offset , y_offset).scale(x_scale, y_scale);
     const QRect window(x_shift, y_shift, x_span, y_span);
 
@@ -173,6 +178,8 @@ ChartPolygonData::ChartPolygonData()
 
 void ChartPolygonData::paint(QPainter* painter)
 {
+    mainPen.setWidthF(hgt / 4);
+
     painter->setBrush(mainBrush);
     painter->setPen(mainPen);
 
@@ -212,18 +219,13 @@ ChartTrajectoryData::ChartTrajectoryData()
 
 void ChartTrajectoryData::paint(QPainter* painter)
 {
-    const qreal w_rect = (painter->window().width() / painter->viewport().width() == 0)
-                             ? 1 : (double)painter->window().width() / painter->viewport().width() * 4;
-    const qreal h_rect = (painter->window().height() / painter->viewport().height() == 0)
-                             ? 1 : (double)painter->window().height() / painter->viewport().height() * 4;
-
-    mainPen.setWidth(h_rect / 4);
+    mainPen.setWidthF(hgt / 4);
 
     painter->setBrush(mainBrush);
     painter->setPen(mainPen);
 
     if (traj.size() == 1)
-        painter->drawRect(QRectF(traj.at(0).x() - w_rect / 2, traj.at(0).y() - h_rect / 2, w_rect, h_rect));
+        painter->drawRect(QRectF(traj.at(0).x() - wdt / 2, traj.at(0).y() - hgt / 2, wdt, hgt));
     else
     {
         for (int j = 1; j < traj.size(); ++j)
@@ -259,60 +261,61 @@ void ChartTrajectoryData::clearData()
 }
 
 
-ChartSplineData::ChartSplineData()
+ChartRouteData::ChartRouteData()
     : ChartDataItem()
 {
     mainPen = QPen(Qt::darkGreen, 1, Qt::SolidLine);
     mainBrush = QBrush(Qt::green);
 }
 
-void ChartSplineData::paint(QPainter* painter)
+void ChartRouteData::paint(QPainter* painter)
 {
-    const int h_rect = (painter->window().height() / painter->viewport().height() == 0)
-                           ? 1 : (double)painter->window().height() / painter->viewport().height() * 4;
+    mainPen.setWidthF(hgt / 4);
 
-    mainPen.setWidth(h_rect / 2);
+    QVector<QPointF> prof = profile;
+
+    const int rect_top = painter->window().top();
+    const int sign = ((bounds[2] - rect_top * 4) <= 0) ? -1 : 1;
+    const qreal lower = sign * rect_top;
+
+    prof.prepend(QPointF(prof.first().x(), lower));
+    prof.append(QPointF(prof.last().x(), lower));
 
     //рисуем профиль маршрута
     painter->setBrush(mainBrush);
     painter->setPen(mainPen);
-    painter->drawConvexPolygon(spline);
+    painter->drawConvexPolygon(prof);
 }
 
-void ChartSplineData::setSpline(const QVector<QPointF>& prof)
+void ChartRouteData::setRoute(const QVector<QPointF>& prof)
 {
-    spline = prof;
+    profile = prof;
 }
 
-void ChartSplineData::setData(const QVector<QPointF>& prof)
+void ChartRouteData::setData(const QVector<QPointF>& prof)
 {
-    QVector<QPointF> profs = prof;
-
-    if (profs.size() <= 1)
+    if (prof.size() <= 1)
         return;
 
-    profs.prepend(QPointF(prof.first().x(), 0));
-    profs.append(QPointF(prof.last().x(), 0));
-
-    setSpline(profs);
-    calcBounds(bounds, prof);   //чтобы не учитывать новодобавленные точки
+    setRoute(prof);
+    calcBounds(bounds, prof);
 }
 
-void ChartSplineData::clearData()
+void ChartRouteData::clearData()
 {
-    spline.clear();
+    profile.clear();
     bounds.clear();
     bounds.resize(4);
 }
 
-qreal ChartSplineData::heightValue(qreal x_value) const
+qreal ChartRouteData::heightValue(qreal x_value) const
 {
     qreal result = 0.0;
 
-    for (int i = 0; i < spline.size() - 1; ++i)
+    for (int i = 0; i < profile.size() - 1; ++i)
     {
-        if (spline.at(i).x() <= x_value && spline.at(i+1).x() > x_value)
-            result = spline.at(i).y();
+        if (profile.at(i).x() <= x_value && profile.at(i+1).x() > x_value)
+            result = profile.at(i).y();
     }
 
     return result;
@@ -321,8 +324,8 @@ qreal ChartSplineData::heightValue(qreal x_value) const
 
 ChartPointData::ChartPointData()
     : ChartDataItem(),
-      zeroPointPen(QPen(Qt::green, 5, Qt::SolidLine)),
-      zeroPointBr(Qt::green)
+    zeroPointPen(QPen(Qt::green, 5, Qt::SolidLine)),
+    zeroPointBr(Qt::green)
 {
     mainPen = QPen(Qt::red, 5, Qt::SolidLine);
     mainBrush = QBrush(Qt::red);
@@ -330,25 +333,19 @@ ChartPointData::ChartPointData()
 
 void ChartPointData::paint(QPainter* painter)
 {
-    const qreal w_rect = (painter->window().width() / painter->viewport().width() == 0)
-                           ? 1 : (double)painter->window().width() / painter->viewport().width() * 4;
-    const qreal h_rect = (painter->window().height() / painter->viewport().height() == 0)
-                           ? 1 : (double)painter->window().height() / painter->viewport().height() * 4;
-
-    zeroPointPen.setWidth(h_rect / 4);
-    mainPen.setWidth(h_rect / 4);
+    zeroPointPen.setWidthF(hgt / 2);
+    mainPen.setWidthF(hgt / 2);
 
     //рисуем точки стояния БМ
     painter->setBrush(zeroPointBr);
     painter->setPen(zeroPointPen);
     if (!points.isEmpty())
-        painter->drawRect(QRectF(points.at(0).x() - w_rect / 2, points.at(0).y() - h_rect / 2, w_rect, h_rect));
+        painter->drawRect(QRectF(points.at(0).x() - wdt / 2, points.at(0).y() - hgt / 2, wdt, hgt));
 
     painter->setBrush(mainBrush);
     painter->setPen(mainPen);
     for (int i = 1; i < points.size(); ++i)
-        painter->drawRect(QRectF(points.at(i).x() - w_rect / 2, points.at(i).y() - h_rect / 2,
-                                 w_rect, h_rect));
+        painter->drawRect(QRectF(points.at(i).x() - wdt / 2, points.at(i).y() - hgt / 2, wdt, hgt));
 }
 
 void ChartPointData::setPoints(const QVector<QPointF>& pts)

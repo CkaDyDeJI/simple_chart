@@ -28,7 +28,7 @@ public:
     ChartAxis* xAxis() const { return xAxs; }
     ChartAxis* yAxis() const { return yAxs; }
     void setExtremes(qreal x_min, qreal x_max, qreal y_min, qreal y_max);
-    void setGridStep(int step_x, int step_y);
+    void setGridStep(qreal step_x, qreal step_y);
     void setAngles(bool enabled);
     void resetBounds();
     void resetStep() { recalcStep = true; }
@@ -62,8 +62,8 @@ private:
     void updateSizeAspects();
 
 signals:
-    void currentAngle(double);
-    void currentCoords(double, double);
+    void currentAngle(qreal);
+    void currentCoords(qreal, qreal);
 
     friend class ChartAxis;
     friend class ChartData;

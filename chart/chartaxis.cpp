@@ -4,19 +4,23 @@
 #include "chartlayeritem.h"
 #include "plainchart.h"
 
-#include <QtMath>
 #include <QPainter>
+#include <QtMath>
+
 
 ChartGrid::ChartGrid()
     : zeroLinePen(QPen(Qt::gray, 0.8, Qt::DashDotDotLine)),
-      gridPen(QPen(Qt::gray, 0.8, Qt::DashDotDotLine)),
-      anglePen(QPen(Qt::darkGray, 0.8, Qt::DashDotDotLine)),
-      drawAngle(false)
+    gridPen(QPen(Qt::gray, 0.8, Qt::DashDotDotLine)),
+    anglePen(QPen(Qt::darkGray, 0.8, Qt::DashDotDotLine)),
+    drawAngle(false)
 {
 }
 
 void ChartGrid::paint(QPainter* painter, const QVector<QPair<QPointF, QPointF> >& points)
 {
+    if (points.isEmpty())
+        return;
+
     const QTransform oldTr = painter->transform();
     const QRect oldWindow = painter->window();
 
@@ -58,15 +62,15 @@ void ChartGrid::initPainter(QPainter* painter)
 
 
 ChartAxis::ChartAxis(PlainChart* parent, bool is_horiz, bool is_invert)
-    : QWidget(parent),
-      ChartLayerItem(),
-      ChartRange(),
-      grd(new ChartGrid()),
-      chart(parent),
-      labelPen(QPen(Qt::gray)),
-      lbPos(0), cellSize(0),
-      isHoriz(is_horiz), isInvert(is_invert), divide(false),
-      offst(0), shft(0)
+    : ChartLayerItem(),
+    ChartRange(),
+    grd(new ChartGrid()),
+    chart(parent),
+    labelPen(QPen(Qt::gray)),
+    numOfTicks(5), numOfSubTicks(5),
+    lbPos(0), prev(0),
+    isHoriz(is_horiz), isInvert(is_invert), divide(false),
+    offst(0), shft(0), cellSize(0)
 {
     if (is_horiz)
     {
@@ -78,6 +82,11 @@ ChartAxis::ChartAxis(PlainChart* parent, bool is_horiz, bool is_invert)
         labelPos = Qt::AlignLeft;
         divideThreshold = 6000;
     }
+}
+
+ChartAxis::~ChartAxis()
+{
+    delete grd;
 }
 
 void ChartAxis::setRange(double newS, double newF)
@@ -126,7 +135,7 @@ void ChartAxis::updateLabelPos()
     ChartAxis* another = (this == chart->xAxs) ? chart->yAxs : chart->xAxs;
 
     if (labelPos == Qt::AlignTop)
-        lbPos = 0 + chart->textHeight;
+        lbPos = chart->textHeight;
     if (labelPos == Qt::AlignBottom)
         lbPos = chart->height();
     if (labelPos == Qt::AlignLeft)
@@ -138,7 +147,7 @@ void ChartAxis::updateLabelPos()
         const int pos = another->pixelFromCoord(0);
         lbPos = (pos < chart->textHeight) ? chart->textHeight : pos;
         lbPos = (pos > another->pixelSpan()) ? another->pixelSpan() : pos;
-    } 
+    }
 }
 
 void ChartAxis::initPainter(QPainter* painter)
@@ -165,25 +174,33 @@ void ChartAxis::paint(QPainter* painter)
 
     const int pos = lbPos;
     const bool drawDivided = !chart->data->isEmpty() && isDivided();
-    const QVector<int>& points = calculatePoints();
+    const QVector<qreal>& points = calculatePoints();
     QVector<QPair<QPointF, QPointF> > gridPoints;
 
     for (int i = 0; i < points.size(); ++i)
     {
-        const int coord = (i == 0) ? 0 : coordFromPixel(points[i]);
-        const QString text = QString::number(drawDivided ? qRound(coord / 1000.0) : coord);
+        const qreal coord = points[i];
+        const QString text = QString::number(drawDivided ? qRound(coord / 1000) : coord);
+        int pixel = pixelFromCoord(coord);
+
+        if (i == 0)
+        {
+            if (prev == pixel + 1 || prev == pixel - 1)
+                pixel = prev;
+            prev = pixel;
+        }
 
         QPointF point;
 
         if (isHoriz)
         {
-            point = QPointF(points[i], pos);
-            gridPoints.append(qMakePair(QPointF(points[i], 0), QPointF(points[i], chart->height())));
+            point = QPointF(pixel, pos);
+            gridPoints.append(qMakePair(QPointF(pixel, 0), QPointF(pixel, chart->height())));
         }
         else
         {
-            point = QPointF(pos, points[i]);
-            gridPoints.append(qMakePair(QPointF(0, points[i]), QPointF(chart->width(), points[i])));
+            point = QPointF(pos, pixel);
+            gridPoints.append(qMakePair(QPointF(0, pixel), QPointF(chart->width(), pixel)));
         }
 
         //тут можно добавить отрисовку тиков осей, если она будет нужна
@@ -198,21 +215,19 @@ void ChartAxis::paint(QPainter* painter)
     painter->setWindow(oldWindow);
 }
 
-QVector<int> ChartAxis::calculatePoints()
+QVector<qreal> ChartAxis::calculatePoints()
 {
-    QVector<int> points;
+    QVector<qreal> points;
 
-    const int cell_size = cellSize;
-    const int start = pixelFromCoord(0);
-    const int finish = pixelSpan();
+    const qreal cell_size = cellSize;
+    const qreal start = 0;
 
-    //однозначное добавление оси
     points.append(start);
 
-    for (int i = start + cell_size; i <= finish; i += cell_size)
+    for (qreal i = start + cell_size; i <= max(); i += cell_size)
         points.append(i);
 
-    for (int i = start - cell_size; i >= 0; i -= cell_size)
+    for (qreal i = start - cell_size; i >= min(); i -= cell_size)
         points.append(i);
 
     return points;

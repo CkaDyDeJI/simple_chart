@@ -4,7 +4,6 @@
 #include "chartlayeritem.h"
 
 #include <QWidget>
-#include <QPen>
 
 class PlainChart;
 
@@ -60,11 +59,11 @@ private:
 };
 
 
-class ChartAxis : public QWidget, public ChartLayerItem, public ChartRange
+class ChartAxis : public ChartLayerItem, public ChartRange
 {
-    Q_OBJECT
 public:
     explicit ChartAxis(PlainChart* parent = NULL, bool is_horiz = false, bool is_invert = false);
+    virtual ~ChartAxis();
 
     virtual void paint(QPainter* painter);
 
@@ -74,15 +73,18 @@ public:
     void setOffset(qreal newOffset) { offst = newOffset; }
     void setShift(qreal newShift) { shft = newShift; }
     void setPen(QPen newPen) { labelPen = newPen; }
-    void setCell(int newCell) { cellSize = newCell; }
+    void setCell(qreal newCell) { cellSize = newCell; }
     void setDivideThreshold(int newTr) { divideThreshold = newTr; }
     void setDivideLabel(bool enabled) { divide = enabled; }
+    void setNumberOfTicks(int newT) { numOfTicks = newT; }
+    void setNumberOfSubTicks(int newT) { numOfSubTicks = newT; }
 
     ChartGrid* grid() const { return grd; }
     int cell() const { return cellSize; }
     qreal offset() const { return offst; }
     qreal shift() const { return shft; }
     bool isInverted() const { return isInvert; }
+    int numberOfTicks() const { return numOfTicks; }
 
     qreal coordFromPixel(int pixel) const;
     int pixelFromCoord(qreal coord) const;
@@ -92,15 +94,16 @@ private:
     bool isDivided() const;
     void updateLabelPos();
 
-    QVector<int> calculatePoints();
+    QVector<qreal> calculatePoints();
 
     ChartGrid* grd;
     PlainChart* chart;
     QPen labelPen;
     Qt::AlignmentFlag labelPos;
-    int lbPos, cellSize, divideThreshold;
+    int numOfTicks, numOfSubTicks;
+    int lbPos, divideThreshold, prev;
     bool isHoriz, isInvert, divide;
-    qreal offst, shft;
+    qreal offst, shft, cellSize;
 };
 
 #endif // CHARTAXIS_H
